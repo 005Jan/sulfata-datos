@@ -37,6 +37,8 @@ jobs:
 
       - name: Comprobar
         id: comprobar
+        # shell: bash activa pipefail: si comprobar.ts falla, el paso falla aunque pase por tee.
+        shell: bash
         env:
           FORZAR_FALLO: ${{ inputs.forzar_fallo || 'false' }}
         run: |
