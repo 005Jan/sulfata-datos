@@ -1,6 +1,6 @@
 # sulfata-datos
 
-Copia semanal del **Registro de Productos Fitosanitarios** del Ministerio de Agricultura, Pesca y Alimentación (MAPA), convertida a una base SQLite para la app **Sulfata**.
+Copia al día del **Registro de Productos Fitosanitarios** del Ministerio de Agricultura, Pesca y Alimentación (MAPA), convertida a una base SQLite para la app **Sulfata**.
 
 > Sulfata no está afiliada al MAPA ni a ningún organismo oficial. La fuente oficial es el registro del MAPA: <https://servicio.mapa.gob.es/regfiweb>. Comprueba siempre la etiqueta del producto.
 
@@ -12,7 +12,7 @@ Copia semanal del **Registro de Productos Fitosanitarios** del Ministerio de Agr
 
 ## Qué se publica
 
-Cada viernes por la noche, una acción de GitHub:
+Cada día a las 05:00 UTC, una acción de GitHub:
 
 1. descarga el JSON de productos autorizados del MAPA;
 2. lo convierte a SQLite (`tool/datos/convertir.ts`);

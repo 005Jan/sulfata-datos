@@ -1,9 +1,10 @@
-name: Datos semanales del MAPA
+name: Datos del MAPA (cada día)
 
 on:
   schedule:
-    # Viernes a las 21:00 UTC (23:00 en España en verano, 22:00 en invierno).
-    - cron: '0 21 * * 5'
+    # Cada día a las 05:00 UTC (7:00 en España en verano, 6:00 en invierno). El MAPA no dice
+    # cuándo actualiza; solo se publica si cambia la fecha de sus datos.
+    - cron: '0 5 * * *'
   workflow_dispatch:
     inputs:
       forzar_fallo:
