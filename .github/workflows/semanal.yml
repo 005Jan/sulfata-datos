@@ -11,6 +11,10 @@ on:
         description: 'Prueba: hacer fallar la comprobación (no publica y avisa por correo)'
         type: boolean
         default: false
+      republicar:
+        description: 'Volver a publicar la fecha ya publicada (sustituye su Release; solo si el MAPA no tiene datos nuevos)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -48,15 +52,21 @@ jobs:
           echo "resultado=$(tail -n 1 salida.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Publicar
-        if: steps.comprobar.outputs.resultado == 'publicar'
+        if: steps.comprobar.outputs.resultado == 'publicar' || (inputs.republicar && steps.comprobar.outputs.resultado == 'sin-cambios')
         env:
           GH_TOKEN: ${{ github.token }}
+          REPUBLICAR: ${{ inputs.republicar && steps.comprobar.outputs.resultado == 'sin-cambios' }}
         run: |
           FECHA=$(node -p "require('./version.json').fecha_datos")
+          # Volver a publicar la misma fecha (por ejemplo, tras cambiar el conversor): se quita antes
+          # la Release de esa fecha. Solo a mano, y solo si el MAPA no ha publicado nada nuevo.
+          if [ "$REPUBLICAR" = "true" ]; then
+            gh release delete "datos-$FECHA" --yes --cleanup-tag
+          fi
           gh release create "datos-$FECHA" sulfata.db.gz version.json \
             --title "Datos del $FECHA" --latest \
             --notes "Registro de Productos Fitosanitarios del MAPA con fecha $FECHA, convertido a SQLite. Fuente: Ministerio de Agricultura, Pesca y Alimentación (https://servicio.mapa.gob.es/regfiweb). No afiliado al MAPA."
 
       - name: Sin cambios
-        if: steps.comprobar.outputs.resultado == 'sin-cambios'
+        if: steps.comprobar.outputs.resultado == 'sin-cambios' && !inputs.republicar
         run: echo "El MAPA no ha publicado datos nuevos; no se publica nada."

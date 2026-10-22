@@ -61,6 +61,29 @@ export function textoUso(v: unknown): string | null {
   return !t || SIN_DATO.has(t) ? null : t;
 }
 
+/** Id estable de un cultivo: su código de 16 cifras como número (0101020702000000 → 101020702000000). */
+export function idCultivo(codigo: string): number {
+  const n = Number(codigo);
+  if (!/^\d{16}$/.test(codigo) || !Number.isSafeInteger(n) || n === 0) {
+    throw new Error(`CODIGO_CULTIVO_RARO: ${codigo}`);
+  }
+  return n;
+}
+
+/**
+ * Id estable de una plaga: cada parte del código («6.2.2.3.10.1») en dos cifras, sumándole 1 para
+ * que «1» y «1.0» no coincidan, hasta 7 niveles (07 03 03 04 11 02 00 → 7030304110200).
+ */
+export function idAgente(codigo: string): number {
+  const partes = codigo.split('.');
+  if (!/^\d+(\.\d+)*$/.test(codigo) || partes.length > 7 || partes.some((p) => Number(p) > 98)) {
+    throw new Error(`CODIGO_PLAGA_RARO: ${codigo}`);
+  }
+  let n = 0;
+  for (let i = 0; i < 7; i++) n = n * 100 + (i < partes.length ? Number(partes[i]) + 1 : 0);
+  return n;
+}
+
 /** Tipo de plaga por el primer número del código del agente (D41). */
 export function tipoPlaga(codigo: unknown): string {
   const grupo = String(codigo ?? '').split('.')[0];
@@ -124,10 +147,12 @@ export function convertir(textoFichero: string, rutaSalida: string): Resumen {
   const insCultivo = db.prepare('INSERT INTO cultivo VALUES (?, ?, ?, ?)');
   const insAgente = db.prepare('INSERT INTO agente VALUES (?, ?, ?, ?, ?)');
   const insTexto = db.prepare('INSERT INTO texto VALUES (?, ?)');
+  // Los id de cultivo y de plaga salen de su código del MAPA: son los mismos en todas las
+  // publicaciones, y la app los guarda (recientes) y los usa en pantallas abiertas al actualizar.
   const cultivoId = (codigo: string, nombre: string) => {
     let n = cultivos.get(codigo);
     if (n === undefined) {
-      n = cultivos.size + 1;
+      n = idCultivo(codigo);
       insCultivo.run(n, codigo, nombre, normalizar(nombre));
       cultivos.set(codigo, n);
     }
@@ -136,7 +161,7 @@ export function convertir(textoFichero: string, rutaSalida: string): Resumen {
   const agenteId = (codigo: string, nombre: string) => {
     let n = agentes.get(codigo);
     if (n === undefined) {
-      n = agentes.size + 1;
+      n = idAgente(codigo);
       insAgente.run(n, codigo, nombre, normalizar(nombre), tipoPlaga(codigo));
       agentes.set(codigo, n);
     }
@@ -190,8 +215,8 @@ export function convertir(textoFichero: string, rutaSalida: string): Resumen {
       const pl = plazo(u['Plazo Seguridad']);
       insUso.run(
         Number(d.IdProducto),
-        cultivoId(String(u.CodigoCultivo), texto(u.Cultivo) ?? ''),
-        agenteId(String(u.CodigoAgente), texto(u.Agente) ?? ''),
+        cultivoId(String(u.CodigoCultivo).trim(), texto(u.Cultivo) ?? ''),
+        agenteId(String(u.CodigoAgente).trim(), texto(u.Agente) ?? ''),
         typeof u.Dosis_Min === 'number' ? u.Dosis_Min : null,
         typeof u.Dosis_Max === 'number' ? u.Dosis_Max : null,
         texto(u['Unidad Medida dosis']),
