@@ -29,3 +29,7 @@ La última versión está siempre en:
 ## Código
 
 Los scripts de `tool/datos` y `src/datos` son copia de los del repositorio de la app, donde tienen sus tests. Se ejecutan con Node 24 sin compilar.
+
+## revisor.json
+
+Código de acceso del revisor de Google Play (D72 de Sulfata). Solo lleva la **huella SHA-256** del código y su caducidad (30 días como mucho), nunca el código. Entre revisiones queda vacío (`{}`); se rellena antes de cada envío a Google y el código se escribe en las notas para el revisor. Cambiar o vaciar la huella lo revoca.
