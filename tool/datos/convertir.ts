@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 import { normalizar } from '../../src/datos/normalizar.ts';
+import { ecologico, FUENTE_ECOLOGICO } from './ecologico.ts';
 
 export const VERSION_ESQUEMA = 1;
 
@@ -134,12 +135,17 @@ export function convertir(textoFichero: string, rutaSalida: string): Resumen {
       dosis_min REAL, dosis_max REAL, unidad TEXT, plazo TEXT, plazo_dias INTEGER,
       aplicaciones TEXT, intervalo TEXT, caldo TEXT, bbch TEXT, condicionamiento_id INTEGER,
       tipo_usuario TEXT, ambito TEXT, sistema TEXT, metodo TEXT);
+    -- Tarea 49 (D86): productos cuyas sustancias están todas en el anexo I del Reglamento (UE)
+    -- 2021/1165, con sus condiciones (una por línea; null si no hay). Tabla nueva sin cambiar
+    -- version_esquema: la app solo la usa si existe.
+    CREATE TABLE ecologico (producto_id INTEGER PRIMARY KEY, condiciones TEXT);
   `);
 
   const insInfo = db.prepare('INSERT INTO info VALUES (?, ?)');
   insInfo.run('fecha_datos', fechaDatos);
   insInfo.run('version_esquema', String(VERSION_ESQUEMA));
   insInfo.run('origen', 'Registro de Productos Fitosanitarios, MAPA');
+  insInfo.run('fuente_ecologico', FUENTE_ECOLOGICO);
 
   const cultivos = new Map<string, number>();
   const agentes = new Map<string, number>();
@@ -181,6 +187,7 @@ export function convertir(textoFichero: string, rutaSalida: string): Resumen {
 
   const insProd = db.prepare('INSERT INTO producto VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
   const insSus = db.prepare('INSERT INTO sustancia VALUES (?, ?, ?, ?)');
+  const insEco = db.prepare('INSERT INTO ecologico VALUES (?, ?)');
   const insUso = db.prepare(
     'INSERT INTO uso VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
   );
@@ -207,10 +214,14 @@ export function convertir(textoFichero: string, rutaSalida: string): Resumen {
       fecha(d.Fecha_LimiteVenta),
       texto(d.Condicionamiento),
     );
+    const sustancias: string[] = [];
     for (const s of p.COMPOSICION ?? []) {
       const sustancia = texto(s['Nombre Sustancia']) ?? texto(s.NombreUE) ?? '';
+      sustancias.push(sustancia);
       insSus.run(Number(d.IdProducto), sustancia, normalizar(sustancia), texto(s.Concentracion));
     }
+    const eco = ecologico(sustancias, texto(d.Formulado));
+    if (eco) insEco.run(Number(d.IdProducto), eco.length ? eco.join('\n') : null);
     for (const u of p.USOS ?? []) {
       const pl = plazo(u['Plazo Seguridad']);
       insUso.run(
