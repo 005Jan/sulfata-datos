@@ -19,6 +19,11 @@ export type Regla = {
   condicion: string | null;
   /** Solo vale con este formulado (las piretroides, solo en trampas: cebo [RB]). */
   formulado?: RegExp;
+  /**
+   * Solo vale si TODAS las plagas de los usos del producto cumplen esto (nombre normalizado).
+   * Las trampas de piretroides, solo contra las moscas que dice el anexo (revisión de la 1.1).
+   */
+  plagas?: RegExp;
 };
 
 const SIN_HERBICIDA = 'Todas las utilizaciones autorizadas, salvo como herbicida.';
@@ -45,7 +50,7 @@ export const REGLAS: Regla[] = [
   {
     anexo: 'Hidrogenocarbonato de sodio',
     apartado: 1,
-    patron: /(hidrogeno)?carbonato (acido )?de sodio|bicarbonato sodico/,
+    patron: /hidrogenocarbonato de sodio|carbonato acido de sodio|bicarbonato sodico/,
     condicion: null,
   },
   { anexo: 'Suero lácteo', apartado: 1, patron: /suero lacteo/, condicion: null },
@@ -241,6 +246,7 @@ export const REGLAS: Regla[] = [
     apartado: 4,
     patron: /^deltametrin/,
     formulado: /\[RB\]/,
+    plagas: /bactrocera oleae|ceratitis capitata|rhagoletis completa/,
     condicion:
       'Solo en trampas con atrayentes específicos contra Bactrocera oleae, Ceratitis capitata y Rhagoletis completa.',
   },
@@ -249,29 +255,44 @@ export const REGLAS: Regla[] = [
     apartado: 4,
     patron: /^lambda[ -]cihalotrin/,
     formulado: /\[RB\]/,
+    plagas: /bactrocera oleae|ceratitis capitata/,
     condicion:
       'Solo en trampas con atrayentes específicos contra Bactrocera oleae y Ceratitis capitata.',
   },
 ];
 
 /** La regla del anexo que cubre esta sustancia del registro, o null. */
-export function reglaDe(sustancia: string, formulado: string | null = null): Regla | null {
+export function reglaDe(
+  sustancia: string,
+  formulado: string | null = null,
+  plagas: string[] = [],
+): Regla | null {
   const n = normalizar(sustancia);
+  const nombres = plagas.map(normalizar);
   return (
-    REGLAS.find((r) => r.patron.test(n) && (!r.formulado || r.formulado.test(formulado ?? ''))) ??
-    null
+    REGLAS.find(
+      (r) =>
+        r.patron.test(n) &&
+        (!r.formulado || r.formulado.test(formulado ?? '')) &&
+        (!r.plagas || (nombres.length > 0 && nombres.every((p) => r.plagas!.test(p)))),
+    ) ?? null
   );
 }
 
 /**
  * Si el producto entra en ecológico: todas sus sustancias tienen regla. Devuelve las condiciones
- * (sin repetir) o null si no entra. Un producto sin sustancias no entra.
+ * (sin repetir) o null si no entra. Un producto sin sustancias no entra. `plagas` son los
+ * nombres de las plagas de sus usos (para las reglas que las limitan).
  */
-export function ecologico(sustancias: string[], formulado: string | null): string[] | null {
+export function ecologico(
+  sustancias: string[],
+  formulado: string | null,
+  plagas: string[] = [],
+): string[] | null {
   if (!sustancias.length) return null;
   const condiciones: string[] = [];
   for (const s of sustancias) {
-    const r = reglaDe(s, formulado);
+    const r = reglaDe(s, formulado, plagas);
     if (!r) return null;
     if (r.condicion && !condiciones.includes(r.condicion)) condiciones.push(r.condicion);
   }

@@ -220,7 +220,8 @@ export function convertir(textoFichero: string, rutaSalida: string): Resumen {
       sustancias.push(sustancia);
       insSus.run(Number(d.IdProducto), sustancia, normalizar(sustancia), texto(s.Concentracion));
     }
-    const eco = ecologico(sustancias, texto(d.Formulado));
+    const plagas = (p.USOS ?? []).map((u) => texto(u.Agente) ?? '');
+    const eco = ecologico(sustancias, texto(d.Formulado), plagas);
     if (eco) insEco.run(Number(d.IdProducto), eco.length ? eco.join('\n') : null);
     for (const u of p.USOS ?? []) {
       const pl = plazo(u['Plazo Seguridad']);
